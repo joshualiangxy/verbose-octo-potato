@@ -9,12 +9,12 @@ void master()
 
 }
 
-void worker_reduce(int rank)
+void map_worker(int rank)
 {
 
 }
 
-void worker_map(int rank, MapTaskOutput* map (char*))
+void reduce_worker(int rank, MapTaskOutput* map(char*))
 {
     map("poggers");
 }
@@ -59,14 +59,14 @@ int main(int argc, char** argv)
             rank,
             rank - 1
         );
-        worker_map(rank - 1, map);
+        reduce_worker(rank - 1, map);
     } else {
         printf(
             "Rank (%d => %d): This is a reduce worker process\n",
             rank,
             rank - num_map_workers - 1
         );
-        worker_reduce(rank - num_map_workers - 1);
+        map_worker(rank - num_map_workers - 1);
     }
 
     // Clean up
