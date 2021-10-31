@@ -75,7 +75,7 @@ void master(
         if (i < num_map_workers) {
             map_worker_rank = NUM_MASTER + i;
         } else {
-            MPI_Waitany(i - 1, receive_requests, &index, &status);
+            MPI_Waitany(i, receive_requests, &index, &status);
             MPI_Get_count(&status, mpi_key_value_type, &count);
             map_worker_rank = status.MPI_SOURCE;
 
@@ -151,6 +151,7 @@ void partition_results(
 }
 
 void map_worker(
+    char* input_files_dir,
     int num_reduce_workers,
     MapTaskOutput* (*map)(char*),
     MPI_Datatype mpi_key_value_type
@@ -176,7 +177,8 @@ void map_worker(
             continue;
         }
 
-        snprintf(file_name, sizeof(char) * 16, "%d.txt", file_num);
+        snprintf(file_name, sizeof(char) * 16,
+                "%s%d.txt", input_files_dir, file_num);
 
         input_file = fopen(file_name, "rb");
 
@@ -353,7 +355,7 @@ int main(int argc, char** argv)
             rank,
             rank - NUM_MASTER
         );
-        map_worker(num_reduce_workers, map, mpi_key_value_type);
+        map_worker(input_files_dir, num_reduce_workers, map, mpi_key_value_type);
     } else {
         printf(
             "Rank (%d => %d): This is a reduce worker process\n",
