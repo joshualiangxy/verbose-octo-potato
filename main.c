@@ -71,7 +71,10 @@ void master(
     MPI_Datatype mpi_key_value_type
 ) {
     int i, completed = 0, count;
-    MPI_Request send_requests[num_files], receive_requests[num_files];
+    MPI_Request map_send_requests[num_files],
+        reduce_send_requests[num_reduce_workers],
+        map_receive_requests[num_files],
+        reduce_receive_requests[num_reduce_workers];
     KeyValueMessage map_results[num_files][MAX_MAP_KEYS],
         reduce_results[num_reduce_workers][MAX_REDUCE_KEYS];
     int buffer[num_files];
@@ -83,7 +86,7 @@ void master(
         if (i < num_map_workers) {
             map_worker_rank = NUM_MASTER + i;
         } else {
-            MPI_Waitany(i, receive_requests, &index, &status);
+            MPI_Waitany(i, map_receive_requests, &index, &status);
             MPI_Get_count(&status, mpi_key_value_type, &count);
             map_worker_rank = status.MPI_SOURCE;
 
@@ -99,19 +102,19 @@ void master(
 
         buffer[i] = i;
         MPI_Isend(&buffer[i], 1, MPI_INT, map_worker_rank,
-                MAP_SEND, MPI_COMM_WORLD, &send_requests[i]);
+                MAP_SEND, MPI_COMM_WORLD, &map_send_requests[i]);
         MPI_Irecv(map_results[i], MAX_MAP_KEYS, mpi_key_value_type, map_worker_rank,
-                MAP_RECEIVE, MPI_COMM_WORLD, &receive_requests[i]);
+                MAP_RECEIVE, MPI_COMM_WORLD, &map_receive_requests[i]);
     }
 
     for (i = 0; i < num_map_workers; i++) {
         map_worker_rank = NUM_MASTER + i;
         MPI_Isend(NULL, 0, MPI_INT, map_worker_rank,
-                EXIT, MPI_COMM_WORLD, &send_requests[i]);
+                EXIT, MPI_COMM_WORLD, map_send_requests);
     }
 
     while (completed++ < num_files) {
-        MPI_Waitany(num_files, receive_requests, &index, &status);
+        MPI_Waitany(num_files, map_receive_requests, &index, &status);
         MPI_Get_count(&status, mpi_key_value_type, &count);
         map_worker_rank = status.MPI_SOURCE;
 
@@ -127,16 +130,16 @@ void master(
     for (i = 0; i < num_reduce_workers; i++) {
         reduce_worker_rank = NUM_MASTER + num_map_workers + i;
         MPI_Isend(NULL, 0, mpi_key_value_type, reduce_worker_rank,
-            EXIT, MPI_COMM_WORLD, &send_requests[i]);
+            EXIT, MPI_COMM_WORLD, &reduce_send_requests[i]);
         MPI_Irecv(&reduce_results[i], MAX_REDUCE_KEYS, mpi_key_value_type, reduce_worker_rank,
-            REDUCE_RECEIVE, MPI_COMM_WORLD, &receive_requests[i]);
+            REDUCE_RECEIVE, MPI_COMM_WORLD, &reduce_receive_requests[i]);
     }
 
     for (i = 0; i < num_reduce_workers; i++) {
-        MPI_Waitany(num_files, receive_requests, &index, &status);
+        MPI_Waitany(num_reduce_workers, reduce_receive_requests, &index, &status);
         MPI_Get_count(&status, mpi_key_value_type, &count);
         write_to_file(
-            reduce_results[i],
+            reduce_results[index],
             count,
             output_file,
             i == num_reduce_workers - 1
@@ -228,7 +231,8 @@ void map_worker(
                 MAP_RECEIVE, MPI_COMM_WORLD, &send_request);
     }
 
-    MPI_Wait(&send_request, MPI_STATUS_IGNORE);
+    if (send_request != NULL)
+        MPI_Wait(&send_request, MPI_STATUS_IGNORE);
     if (results != NULL) {
         free_map_task_output(results);
         results = NULL;
@@ -246,7 +250,7 @@ void reduce_worker(MPI_Datatype mpi_key_value_type)
     int i, j, count, key_count = 0;
 
     while (true) {
-        MPI_Recv(&receive_buffer, MAX_MAP_KEYS, mpi_key_value_type, MASTER_RANK,
+        MPI_Recv(receive_buffer, MAX_MAP_KEYS, mpi_key_value_type, MASTER_RANK,
                 MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
         if (status.MPI_TAG == EXIT) break;
