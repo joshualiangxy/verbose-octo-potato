@@ -26,31 +26,24 @@ void send_to_reducer(
     int num_reduce_workers,
     MPI_Datatype mpi_key_value_type
 ) {
-  KeyValueMessage partition_values[num_reduce_workers][MAX_MAP_KEYS];
-  MPI_Request send_requests[num_reduce_workers];
-  int i, counts[num_reduce_workers];
+    KeyValueMessage partition_values[num_reduce_workers][MAX_MAP_KEYS];
+    MPI_Request send_requests[num_reduce_workers];
+    int i, counts[num_reduce_workers];
 
-  memset(counts, 0, num_reduce_workers * sizeof(int));
+    memset(counts, 0, num_reduce_workers * sizeof(int));
 
-  for (i = 0; i < length; i++) {
-    KeyValueMessage key_value = key_values[i];
-    int partition = key_value.partition;
-    partition_values[partition][counts[partition]] = key_value;
+    for (i = 0; i < length; i++) {
+        KeyValueMessage key_value = key_values[i];
+        int partition = key_value.partition;
+        partition_values[partition][counts[partition]] = key_value;
 
-    counts[partition]++;
+        counts[partition]++;
     }
 
     for (i = 0; i < num_reduce_workers; i++) {
         int reduce_worker_rank = NUM_MASTER + num_map_workers + i;
-        MPI_Isend(
-            &partition_values[i],
-            counts[i],
-            mpi_key_value_type,
-            reduce_worker_rank,
-            REDUCE_SEND,
-            MPI_COMM_WORLD,
-            &send_requests[i]
-        );
+        MPI_Isend(&partition_values[i], counts[i], mpi_key_value_type, reduce_worker_rank,
+                REDUCE_SEND, MPI_COMM_WORLD, &send_requests[i]);
     }
 }
 
@@ -226,9 +219,62 @@ void map_worker(
 
 void reduce_worker(int rank, MPI_Datatype mpi_key_value_type)
 {
+    MPI_Status status;
+    MPI_Request send_request;
+    KeyValueMessage receive_buffer[MAX_MAP_KEYS], send_buffer[MAX_REDUCE_KEYS];
+    char keys[MAX_REDUCE_KEYS][8];
+    int values[MAX_REDUCE_KEYS][MAX_MAP_KEYS];
+    int lengths[MAX_REDUCE_KEYS];
+    int i, j, count, key_count;
+
     while (true) {
-        MPI_Status status;
+        MPI_Recv(&receive_buffer, MAX_MAP_KEYS, mpi_key_value_type, MASTER_RANK,
+                MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+
+        if (status.MPI_TAG == EXIT) break;
+        if (status.MPI_TAG != REDUCE_SEND) {
+            printf("Wrong tag sent to reduce worker: %d\n", status.MPI_TAG);
+            continue;
+        }
+
+        MPI_Get_count(&status, mpi_key_value_type, &count);
+
+        for (i = 0; i < count; i++) {
+            KeyValueMessage key_value = receive_buffer[i];
+            bool found = false;
+
+            for (j = 0; j < key_count; j++) {
+                if (strcmp(key_value.key, keys[j]) == 0) continue;
+
+                found = true;
+                values[j][lengths[j]] = key_value.val;
+                lengths[j]++;
+                break;
+            }
+
+            if (!found) {
+                keys[key_count] = key_value.key;
+                lengths[key_count] = 1;
+                values[key_count][0] = key_value.val;
+                key_count++;
+            }
+        }
+
+        for (i = 0; i < key_count; i++) {
+            KeyValue key_value = reduce(keys[i], values[i], lengths[i]);
+            values[i] = key_value.val;
+            lengths[i] = 1;
+        }
     }
+
+    for (i = 0; i < key_count; i++) {
+        send_buffer[i].key = keys[i];
+        send_buffer[i].val = values[i][0];
+        send_buffer[i].partition = 0;
+    }
+
+    MPI_Isend(send_buffer, key_count, mpi_key_value_type, MASTER_RANK,
+            REDUCE_RECEIVE, MPI_COMM_WORLD, &send_request);
 }
 
 int main(int argc, char** argv)
