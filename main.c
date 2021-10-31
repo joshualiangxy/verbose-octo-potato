@@ -160,7 +160,7 @@ void map_worker(
     long file_size;
     char* file_contents;
     MPI_Status status;
-    MPI_Request send_request;
+    MPI_Request send_request = NULL;
     KeyValueMessage* send_buffer;
     MapTaskOutput* results = NULL;
 
@@ -191,7 +191,8 @@ void map_worker(
 
         file_contents[file_size] = 0;
 
-        MPI_Wait(&send_request, MPI_STATUS_IGNORE);
+        if (send_request != NULL)
+            MPI_Wait(&send_request, MPI_STATUS_IGNORE);
         if (results != NULL) {
             free_map_task_output(results);
             results = NULL;
