@@ -194,7 +194,7 @@ void map_worker(
         file_contents = (char*) malloc(file_size + 1);
         fread(file_contents, file_size, input_file);
 
-        fclose(file_name);
+        fclose(input_file);
 
         file_contents[file_size] = 0;
 
