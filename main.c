@@ -253,24 +253,24 @@ void reduce_worker(int rank, MPI_Datatype mpi_key_value_type)
             }
 
             if (!found) {
-                keys[key_count] = key_value.key;
                 lengths[key_count] = 1;
                 values[key_count][0] = key_value.val;
+                strcpy(keys[key_count], key_value.key);
                 key_count++;
             }
         }
 
         for (i = 0; i < key_count; i++) {
             KeyValue key_value = reduce(keys[i], values[i], lengths[i]);
-            values[i] = key_value.val;
+            values[i][0] = key_value.val;
             lengths[i] = 1;
         }
     }
 
     for (i = 0; i < key_count; i++) {
-        send_buffer[i].key = keys[i];
         send_buffer[i].val = values[i][0];
         send_buffer[i].partition = 0;
+        strcpy(send_buffer[i].key, keys[i]);
     }
 
     MPI_Isend(send_buffer, key_count, mpi_key_value_type, MASTER_RANK,
