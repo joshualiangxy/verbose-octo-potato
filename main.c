@@ -206,7 +206,7 @@ int main(int argc, char** argv)
     MPI_Datatype mpi_key_value_type;
     MPI_Datatype types[3] = { MPI_CHAR, MPI_INT, MPI_INT };
     int blocklengths[3] = { 8, 1, 1 };
-    int displacements[3] = {
+    MPI_Aint displacements[3] = {
         offsetof(KeyValueMessage, key),
         offsetof(KeyValueMessage, val),
         offsetof(KeyValueMessage, partition)
