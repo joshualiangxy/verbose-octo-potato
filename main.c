@@ -199,9 +199,9 @@ int main(int argc, char** argv)
 
     int structlen = 3;
     MPI_Datatype mpi_key_value_type;
-    MPI_Datatype types[structlen] = { MPI_CHAR, MPI_INT, MPI_INT };
-    int blocklengths[structlen] = { 8, 1, 1 };
-    int displacements[structlen] = {
+    MPI_Datatype types[3] = { MPI_CHAR, MPI_INT, MPI_INT };
+    int blocklengths[3] = { 8, 1, 1 };
+    int displacements[3] = {
         offsetof(KeyValueMessage, key),
         offsetof(KeyValueMessage, val),
         offsetof(KeyValueMessage, partition)
