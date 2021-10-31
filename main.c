@@ -42,17 +42,25 @@ void send_to_reducer(
 
     for (i = 0; i < num_reduce_workers; i++) {
         int reduce_worker_rank = NUM_MASTER + num_map_workers + i;
-        MPI_Isend(&partition_values[i], counts[i], mpi_key_value_type, reduce_worker_rank,
+        MPI_Isend(partition_values[i], counts[i], mpi_key_value_type, reduce_worker_rank,
                 REDUCE_SEND, MPI_COMM_WORLD, &send_requests[i]);
     }
 }
 
-void write_to_file(KeyValueMessage results[], int length, FILE* output_file)
-{
+void write_to_file(
+    KeyValueMessage results[],
+    int length,
+    FILE* output_file,
+    bool is_last
+) {
     int i;
 
-    for (i = 0; i < length; i++)
+    for (i = 0; i < length; i++) {
         fprintf(output_file, "%s %d", results[i].key, results[i].val);
+
+        if (!is_last || i < length - 1)
+            fprintf(output_file, "\n");
+    }
 }
 
 void master(
@@ -127,7 +135,12 @@ void master(
     for (i = 0; i < num_reduce_workers; i++) {
         MPI_Waitany(num_files, receive_requests, &index, &status);
         MPI_Get_count(&status, mpi_key_value_type, &count);
-        write_to_file(reduce_results[i], count, output_file);
+        write_to_file(
+            reduce_results[i],
+            count,
+            output_file,
+            i == num_reduce_workers - 1
+        );
     }
 
     fclose(output_file);
@@ -230,7 +243,7 @@ void reduce_worker(int rank, MPI_Datatype mpi_key_value_type)
     char keys[MAX_REDUCE_KEYS][8];
     int values[MAX_REDUCE_KEYS][MAX_MAP_KEYS];
     int lengths[MAX_REDUCE_KEYS];
-    int i, j, count, key_count;
+    int i, j, count, key_count = 0;
 
     while (true) {
         MPI_Recv(&receive_buffer, MAX_MAP_KEYS, mpi_key_value_type, MASTER_RANK,
@@ -249,7 +262,7 @@ void reduce_worker(int rank, MPI_Datatype mpi_key_value_type)
             bool found = false;
 
             for (j = 0; j < key_count; j++) {
-                if (strcmp(key_value.key, keys[j]) == 0) continue;
+                if (strcmp(key_value.key, keys[j]) != 0) continue;
 
                 found = true;
                 values[j][lengths[j]] = key_value.val;
