@@ -165,8 +165,10 @@ void map_worker(
     KeyValueMessage* send_buffer;
     MapTaskOutput* results = NULL;
 
+    int file_name_size = strlen(input_files_dir) + 16;
+
     while (true) {
-        char file_name[16];
+        char* file_name[file_name_size];
 
         MPI_Recv(&file_num, 1, MPI_INT, MASTER_RANK,
                 MPI_ANY_TAG, MPI_COMM_WORLD, &status);
@@ -177,7 +179,7 @@ void map_worker(
             continue;
         }
 
-        snprintf(file_name, sizeof(char) * 16,
+        snprintf(file_name, sizeof(char) * file_name_size,
                 "%s%d.txt", input_files_dir, file_num);
 
         input_file = fopen(file_name, "rb");
