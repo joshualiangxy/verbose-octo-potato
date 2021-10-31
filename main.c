@@ -311,16 +311,6 @@ int main(int argc, char** argv)
 
     int world_size, rank;
 
-    int structlen = 3;
-    MPI_Datatype mpi_key_value_type;
-    MPI_Datatype types[3] = { MPI_CHAR, MPI_INT, MPI_INT };
-    int blocklengths[3] = { 8, 1, 1 };
-    MPI_Aint displacements[3] = {
-        offsetof(KeyValueMessage, key),
-        offsetof(KeyValueMessage, val),
-        offsetof(KeyValueMessage, partition)
-    };
-
     FILE* output_file = fopen(output_file_name, "w");
     if (output_file == NULL) {
         fprintf(
@@ -334,6 +324,16 @@ int main(int argc, char** argv)
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    int structlen = 3;
+    MPI_Datatype mpi_key_value_type;
+    MPI_Datatype types[3] = { MPI_CHAR, MPI_INT, MPI_INT };
+    int blocklengths[3] = { 8, 1, 1 };
+    MPI_Aint displacements[3] = {
+        offsetof(KeyValueMessage, key),
+        offsetof(KeyValueMessage, val),
+        offsetof(KeyValueMessage, partition)
+    };
 
     MPI_Type_create_struct(
         structlen,
