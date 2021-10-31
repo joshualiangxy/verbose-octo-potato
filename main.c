@@ -235,7 +235,7 @@ void map_worker(
     }
 }
 
-void reduce_worker(int rank, MPI_Datatype mpi_key_value_type)
+void reduce_worker(MPI_Datatype mpi_key_value_type)
 {
     MPI_Status status;
     MPI_Request send_request;
@@ -369,7 +369,7 @@ int main(int argc, char** argv)
         map_worker(input_files_dir, num_reduce_workers, map, mpi_key_value_type);
     } else {
         printf("Rank (%d): This is a reduce worker process\n", rank);
-        reduce_worker(rank - num_map_workers - 1, mpi_key_value_type);
+        reduce_worker(mpi_key_value_type);
     }
 
     MPI_Type_free(&mpi_key_value_type);
