@@ -169,6 +169,7 @@ void map_worker(
     MPI_Status status;
     MPI_Request send_request;
     KeyValueMessage* send_buffer;
+    MapTaskOutput* results = NULL;
 
     while (true) {
         char file_name[16];
@@ -197,7 +198,13 @@ void map_worker(
 
         file_contents[file_size] = 0;
 
-        MapTaskOutput* results = map(file_contents);
+        MPI_Wait(&send_request, MPI_STATUS_IGNORE);
+        if (results != NULL) {
+            free_map_task_output(results);
+            results = NULL;
+        }
+
+        results = map(file_contents);
 
         send_buffer = (KeyValueMessage*) malloc(
             sizeof(KeyValueMessage) * results->len
@@ -206,10 +213,14 @@ void map_worker(
         partition_results(results->kvs, results->len,
                 num_reduce_workers, send_buffer);
 
-        MPI_Wait(&send_request, MPI_STATUS_IGNORE);
-
         MPI_Isend(send_buffer, results->len, mpi_key_value_type, MASTER_RANK,
                 MAP_RECEIVE, MPI_COMM_WORLD, &send_request);
+    }
+
+    MPI_Wait(&send_request, MPI_STATUS_IGNORE);
+    if (results != NULL) {
+        free_map_task_output(results);
+        results = NULL;
     }
 }
 
