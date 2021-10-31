@@ -192,7 +192,7 @@ void map_worker(
         fseek(input_file, 0, SEEK_SET);
 
         file_contents = (char*) malloc(file_size + 1);
-        fread(file_contents, file_size, input_file);
+        fread(file_contents, sizeof(char), file_size, input_file);
 
         fclose(input_file);
 
