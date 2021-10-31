@@ -365,18 +365,10 @@ int main(int argc, char** argv)
             mpi_key_value_type
         );
     } else if ((rank >= 1) && (rank <= num_map_workers)) {
-        printf(
-            "Rank (%d => %d): This is a map worker process\n",
-            rank,
-            rank - NUM_MASTER
-        );
+        printf("Rank (%d): This is a map worker process\n", rank);
         map_worker(input_files_dir, num_reduce_workers, map, mpi_key_value_type);
     } else {
-        printf(
-            "Rank (%d => %d): This is a reduce worker process\n",
-            rank,
-            rank - num_map_workers - NUM_MASTER
-        );
+        printf("Rank (%d): This is a reduce worker process\n", rank);
         reduce_worker(rank - num_map_workers - 1, mpi_key_value_type);
     }
 
