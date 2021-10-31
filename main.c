@@ -1,4 +1,5 @@
 #include <mpi.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -198,9 +199,9 @@ int main(int argc, char** argv)
 
     int structlen = 3;
     MPI_Datatype mpi_key_value_type;
-    MPI_Datatype types[2] = { MPI_CHAR, MPI_INT, MPI_INT };
-    int blocklengths[2] = { 8, 1, 1 };
-    int displacements[2] = {
+    MPI_Datatype types[structlen] = { MPI_CHAR, MPI_INT, MPI_INT };
+    int blocklengths[structlen] = { 8, 1, 1 };
+    int displacements[structlen] = {
         offsetof(KeyValueMessage, key),
         offsetof(KeyValueMessage, val),
         offsetof(KeyValueMessage, partition)
