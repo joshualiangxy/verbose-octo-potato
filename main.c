@@ -158,9 +158,8 @@ void partition_results(
 }
 
 void map_worker(
-    int map_reduce_task_num,
     int num_reduce_workers,
-    MapTaskOutput* map(char*),
+    MapTaskOutput* (*map)(char*),
     MPI_Datatype mpi_key_value_type
 ) {
     FILE* input_file;
@@ -198,18 +197,18 @@ void map_worker(
 
         file_contents[file_size] = 0;
 
-        MapTaskOutput results = map(file_contents);
+        MapTaskOutput* results = map(file_contents);
 
         send_buffer = (KeyValueMessage*) malloc(
-            sizeof(KeyValueMessage) * results.len
+            sizeof(KeyValueMessage) * results->len
         );
 
-        partition_results(results.kvs, results.len,
+        partition_results(results->kvs, results->len,
                 num_reduce_workers, send_buffer);
 
-        MPI_Wait(&send_request, MPI_IGNORE_STATUS);
+        MPI_Wait(&send_request, MPI_STATUS_IGNORE);
 
-        MPI_Isend(send_buffer, results.len, mpi_key_value_type, MASTER_RANK,
+        MPI_Isend(send_buffer, results->len, mpi_key_value_type, MASTER_RANK,
                 MAP_RECEIVE, MPI_COMM_WORLD, &send_request);
     }
 }
@@ -267,7 +266,7 @@ int main(int argc, char** argv)
     MPI_Type_commit(&mpi_key_value_type);
 
     // Identify the specific map function to use
-    MapTaskOutput* (*map) (char*);
+    MapTaskOutput* (*map)(char*);
     switch (map_reduce_task_num) {
         case 1:
             map = &map1;
@@ -296,7 +295,7 @@ int main(int argc, char** argv)
             rank,
             rank - NUM_MASTER
         );
-        map_worker(map_reduce_task_num, num_reduce_workers, map, mpi_key_value_type);
+        map_worker(num_reduce_workers, map, mpi_key_value_type);
     } else {
         printf(
             "Rank (%d => %d): This is a reduce worker process\n",
