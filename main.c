@@ -168,7 +168,7 @@ void map_worker(
     int file_name_size = strlen(input_files_dir) + 16;
 
     while (true) {
-        char* file_name[file_name_size];
+        char file_name[file_name_size];
 
         MPI_Recv(&file_num, 1, MPI_INT, MASTER_RANK,
                 MPI_ANY_TAG, MPI_COMM_WORLD, &status);
