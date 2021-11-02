@@ -309,6 +309,17 @@ int main(int argc, char** argv)
     char* output_file_name = argv[5];
     int map_reduce_task_num = atoi(argv[6]);
 
+    int structlen = 3;
+    MPI_Datatype tmp_type, mpi_key_value_type;
+    MPI_Datatype types[3] = { MPI_CHAR, MPI_INT, MPI_INT };
+    int blocklengths[3] = { 8, 1, 1 };
+    MPI_Aint displacements[3] = {
+        offsetof(KeyValueMessage, key),
+        offsetof(KeyValueMessage, val),
+        offsetof(KeyValueMessage, partition)
+    };
+    MPI_Aint lb, extent;
+
     int world_size, rank;
 
     FILE* output_file = fopen(output_file_name, "w");
@@ -325,23 +336,15 @@ int main(int argc, char** argv)
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    int structlen = 3;
-    MPI_Datatype mpi_key_value_type;
-    MPI_Datatype types[3] = { MPI_CHAR, MPI_INT, MPI_INT };
-    int blocklengths[3] = { 8, 1, 1 };
-    MPI_Aint displacements[3] = {
-        offsetof(KeyValueMessage, key),
-        offsetof(KeyValueMessage, val),
-        offsetof(KeyValueMessage, partition)
-    };
-
     MPI_Type_create_struct(
         structlen,
         blocklengths,
         displacements,
         types,
-        &mpi_key_value_type
+        &tmp_type
     );
+    MPI_Type_get_extent(tmp_type, &lb, &extent);
+    MPI_Type_create_resized(tmp_type, lb, extent, &mpi_key_value_type);
     MPI_Type_commit(&mpi_key_value_type);
 
     // Identify the specific map function to use
