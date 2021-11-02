@@ -28,6 +28,7 @@ void send_to_reducer(
 ) {
     KeyValueMessage partition_values[num_reduce_workers][MAX_MAP_KEYS];
     MPI_Request send_requests[num_reduce_workers];
+    MPI_Status send_statuses[num_reduce_workers];
     int i, counts[num_reduce_workers];
 
     memset(counts, 0, num_reduce_workers * sizeof(int));
@@ -45,6 +46,7 @@ void send_to_reducer(
         MPI_Isend(partition_values[i], counts[i], mpi_key_value_type, reduce_worker_rank,
                 REDUCE_SEND, MPI_COMM_WORLD, &send_requests[i]);
     }
+    MPI_Waitall(num_reduce_workers, send_requests, send_statuses);
 }
 
 void write_to_file(
