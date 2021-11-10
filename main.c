@@ -6,8 +6,10 @@
 #include <vector>
 #include <unordered_map>
 #include <iostream>
-#include "tasks.h"
-#include "utils.h"
+extern "C" {
+    #include "tasks.h"
+    #include "utils.h"
+}
 
 enum TAG {
     MAP_SEND,

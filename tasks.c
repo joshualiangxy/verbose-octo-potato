@@ -30,9 +30,9 @@ MapTaskOutput* map1(char *file_contents) {
 
     MapTaskOutput *output = (MapTaskOutput *)malloc(sizeof(MapTaskOutput));
     KeyValue *kvs = (KeyValue *)malloc(sizeof(KeyValue) * 3);
-    kvs[0] = (KeyValue) { "letters", num_letters };
-    kvs[1] = (KeyValue) { "numbers", num_numbers };
-    kvs[2] = (KeyValue) { "others", num_others };
+    kvs[0] = (KeyValue) { .key="letters", .val=num_letters };
+    kvs[1] = (KeyValue) { .key="numbers", .val=num_numbers };
+    kvs[2] = (KeyValue) { .key="others", .val=num_others };
 
     output->len = 3;
     output->kvs = kvs;
