@@ -22,8 +22,6 @@ enum TAG {
 
 int MASTER_RANK = 0;
 int NUM_MASTER = 1;
-int MAX_MAP_KEYS = 4 * 48;
-int MAX_REDUCE_KEYS = 26;
 
 typedef struct {
     char key[8];
