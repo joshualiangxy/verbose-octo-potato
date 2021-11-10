@@ -3,6 +3,9 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <vector>
+#include <unordered_map>
+#include <iostream>
 #include "tasks.h"
 #include "utils.h"
 
@@ -165,7 +168,7 @@ void master(
             sizeof(KeyValueMessage) * length
         );
 
-        MPI_Irecv(&reduce_results[i], MAX_REDUCE_KEYS, mpi_key_value_type, reduce_worker_rank,
+        MPI_Irecv(reduce_results[i], length, mpi_key_value_type, reduce_worker_rank,
                 REDUCE_RECEIVE, MPI_COMM_WORLD, &reduce_receive_requests[i]);
     }
 
@@ -285,17 +288,23 @@ void map_worker(
 
 void reduce_worker(MPI_Datatype mpi_key_value_type)
 {
+    using std::vector;
+    using std::unordered_map;
+    using std::string;
+
     MPI_Status status;
     KeyValueMessage* receive_buffer;
     KeyValueMessage* send_buffer;
-    char** keys;
-    int** values;
-    int* lengths;
+    vector<string> keys;
+    vector<vector<int>> values;
+    vector<int> lengths;
+    unordered_map<string, int> key_map;
     int i, j, length, key_count = 0;
+    int counter = 0;
 
     while (true) {
         MPI_Recv(&length, 1, MPI_INT, MASTER_RANK,
-                MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
         if (status.MPI_TAG == EXIT) break;
         if (status.MPI_TAG != REDUCE_SEND_LENGTH) {
@@ -306,42 +315,42 @@ void reduce_worker(MPI_Datatype mpi_key_value_type)
         receive_buffer = (KeyValueMessage*) malloc(
             sizeof(KeyValueMessage) * length
         );
-        keys = (char**) malloc(sizeof(char*) * length);
-        values = (int**) malloc(sizeof(int*) * length);
-        lengths = (int*) malloc(sizeof(int) * length);
 
         MPI_Recv(receive_buffer, length, mpi_key_value_type, MASTER_RANK,
-                REDUCE_SEND, MPI_COMM_WORLD, &status);
+                REDUCE_SEND, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         for (i = 0; i < length; i++) {
             KeyValueMessage key_value = receive_buffer[i];
             bool found = false;
 
-            for (j = 0; j < key_count; j++) {
-                if (strcmp(key_value.key, keys[j]) != 0) continue;
+            auto iter = key_map.find(key_value.key);
 
-                found = true;
-                values[j][lengths[j]] = key_value.val;
-                lengths[j]++;
-                break;
-            }
+            if (iter != key_map.end()) {
+                int index = iter->second;
 
-            if (!found) {
-                values[key_count] = (int*) malloc(sizeof(int) * length);
-                keys[key_count] = (char*) malloc(sizeof(char) * 8);
+                if (lengths[index] >= values[index].size())
+                    values[index].push_back(key_value.val);
+                else
+                    values[index][lengths[index]] = key_value.val;
 
-                lengths[key_count] = 1;
-                values[key_count][0] = key_value.val;
-                strcpy(keys[key_count], key_value.key);
+                lengths[index]++;
+            } else {
+                key_map.insert({ key_value.key, key_count });
+                keys.push_back(key_value.key);
+                values.push_back({ key_value.val });
+                lengths.push_back(1);
                 key_count++;
             }
         }
 
         for (i = 0; i < key_count; i++) {
-            KeyValue key_value = reduce(keys[i], values[i], lengths[i]);
+            KeyValue key_value = reduce(&keys[i][0], &values[i][0], lengths[i]);
             values[i][0] = key_value.val;
             lengths[i] = 1;
         }
+
+        free(receive_buffer);
+        receive_buffer = NULL;
     }
 
     send_buffer = (KeyValueMessage*) malloc(
@@ -351,18 +360,8 @@ void reduce_worker(MPI_Datatype mpi_key_value_type)
     for (i = 0; i < key_count; i++) {
         send_buffer[i].val = values[i][0];
         send_buffer[i].partition = 0;
-        strcpy(send_buffer[i].key, keys[i]);
-
-        free(values[i]);
-        values[i] = NULL;
-        free(keys[i]);
-        keys[i] = NULL;
+        strcpy(send_buffer[i].key, &keys[i][0]);
     }
-
-    free(values);
-    values = NULL;
-    free(keys);
-    keys[i] = NULL;
 
     MPI_Send(&key_count, 1, MPI_INT, MASTER_RANK,
             REDUCE_RECEIVE_LENGTH, MPI_COMM_WORLD);
