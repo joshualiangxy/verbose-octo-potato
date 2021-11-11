@@ -86,7 +86,7 @@ void master(
     FILE* output_file,
     MPI_Datatype mpi_key_value_type
 ) {
-    int i, completed = 0, count, map_lengths[num_map_workers], length;
+    int i, completed = 0, count, map_lengths[num_map_workers], reduce_lengths[num_reduce_workers];
     MPI_Request map_send_requests[num_files],
         map_receive_requests[num_files],
         map_exit_requests[num_map_workers],
@@ -168,22 +168,24 @@ void master(
         MPI_Isend(NULL, 0, MPI_INT, reduce_worker_rank,
                 EXIT, MPI_COMM_WORLD, &reduce_exit_requests[i]);
 
-        MPI_Recv(&length, 1, MPI_INT, reduce_worker_rank, REDUCE_RECEIVE_LENGTH,
-                MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        reduce_results[i] = (KeyValueMessage*) malloc(
-            sizeof(KeyValueMessage) * length
-        );
-
-        MPI_Irecv(reduce_results[i], length, mpi_key_value_type, reduce_worker_rank,
-                REDUCE_RECEIVE, MPI_COMM_WORLD, &reduce_receive_requests[i]);
+        MPI_Irecv(&reduce_lengths[i], 1, MPI_INT, reduce_worker_rank, REDUCE_RECEIVE_LENGTH,
+                MPI_COMM_WORLD, &reduce_receive_requests[i]);
     }
 
     for (i = 0; i < num_reduce_workers; i++) {
         MPI_Waitany(num_reduce_workers, reduce_receive_requests, &index, &status);
-        MPI_Get_count(&status, mpi_key_value_type, &count);
+
+        reduce_worker_rank = status.MPI_SOURCE;
+        reduce_results[index] = (KeyValueMessage*) malloc(
+            sizeof(KeyValueMessage) * reduce_lengths[index]
+        );
+
+        MPI_Recv(reduce_results[index], reduce_lengths[index], mpi_key_value_type, reduce_worker_rank,
+                REDUCE_RECEIVE, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
         write_to_file(
             reduce_results[index],
-            count,
+            reduce_lengths[index],
             output_file,
             i == num_reduce_workers - 1
         );
