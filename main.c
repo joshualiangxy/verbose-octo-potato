@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <vector>
 #include <unordered_map>
 #include <iostream>
@@ -250,9 +251,13 @@ void map_worker(
 
         input_file = fopen(file_name, "rb");
 
-        fseek(input_file, 0, SEEK_END);
-        file_size = ftell(input_file);
-        fseek(input_file, 0, SEEK_SET);
+        struct stat st;
+        if (stat(file_name, &st) == 0) {
+            file_size = st.st_size;
+        } else {
+            printf("Invalid file\n");
+            continue;
+        }
 
         file_contents = (char*) malloc(file_size + 1);
         fread(file_contents, sizeof(char), file_size, input_file);
