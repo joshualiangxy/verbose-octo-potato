@@ -232,7 +232,7 @@ void map_worker(
     KeyValueMessage* send_buffer;
     MapTaskOutput* results = NULL;
 
-    int file_name_size = strlen(input_files_dir) + 16;
+    int file_name_size = strlen(input_files_dir) + 17;
 
     while (true) {
         char file_name[file_name_size];
@@ -247,7 +247,7 @@ void map_worker(
         }
 
         snprintf(file_name, sizeof(char) * file_name_size,
-                "%s%d.txt", input_files_dir, file_num);
+                "%s/%d.txt", input_files_dir, file_num);
 
         input_file = fopen(file_name, "rb");
 
